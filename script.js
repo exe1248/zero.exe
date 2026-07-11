@@ -2,8 +2,8 @@
 // script.js — site logic. Personalization lives in config.js.
 // ============================================================
 
-const DEFAULT_VOLUME = 0.3;
-const BACKGROUND_VIDEO_PLAYBACK_RATE = 0.8; // slow motion
+const DEFAULT_VOLUME = 0.8;
+const BACKGROUND_VIDEO_PLAYBACK_RATE = 1; // slow motion
 
 // Background music state (see initMusicPlayer() and friends near the bottom).
 let mpAudio = null;
@@ -15,8 +15,11 @@ let vizDataArray = null;
 let vizSetupDone = false;
 
 // Background video playlist state (see setupBackgroundVideoPlaylist()).
+let bgVideoEls = [];
 let bgVideoPaths = [];
-let bgVideoIndex = 0;
+let bgVideoIndex = 0; // path index currently playing (active slot)
+let bgPreloadIndex = 0; // path index buffering in the idle slot
+let bgActiveSlot = 0; // which of bgVideoEls (0 or 1) is on screen
 let bgVideoFailCount = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -25,7 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupBackgroundFallback();
   setupEnterGate();
   initMusicPlayer();
-  setupViewCounter();
   setupConnectLinks();
   setupCustomCursor();
 });
@@ -56,7 +58,11 @@ function applyConfig() {
   setupBackgroundVideoPlaylist();
 
   if (!CONFIG.enableViewCounter) {
-    document.getElementById('view-counter').style.display = 'none';
+    document.getElementById('view-count').style.display = 'none';
+  }
+
+  if (!CONFIG.enableCrtEffect) {
+    document.getElementById('crt-overlay').style.display = 'none';
   }
 }
 
@@ -135,66 +141,108 @@ function startBrowserTitleAnimation() {
 }
 
 // ---------- Background video playlist (config.js -> backgroundVideoPaths) ----------
-// Plays each video in order; when one ends, the next one starts, wrapping
-// back to the first after the last — a single-entry list just plays that
-// one video on repeat, same as the old single-path behavior.
+// Plays each video in order, crossfading into the next as one ends, and
+// wraps back to the first after the last — a single-entry list just plays
+// that one video on repeat, same as before. The upcoming video is preloaded
+// into a second, hidden <video> element while the current one plays, so the
+// swap is instant instead of stalling on a fresh load().
 function setupBackgroundVideoPlaylist() {
-  const video = document.getElementById('bg-video');
+  bgVideoEls = [document.getElementById('bg-video-1'), document.getElementById('bg-video-2')];
   bgVideoPaths = (CONFIG.backgroundVideoPaths || []).filter((p) => !!p);
   bgVideoIndex = 0;
+  bgPreloadIndex = (bgVideoIndex + 1) % bgVideoPaths.length || 0;
+  bgActiveSlot = 0;
   bgVideoFailCount = 0;
 
   if (bgVideoPaths.length === 0) {
-    video.classList.add('media-error'); // nothing configured — fall straight to the image
+    bgVideoEls.forEach((el) => el.classList.add('media-error')); // nothing configured — fall straight to the image
     return;
   }
 
-  video.addEventListener('loadedmetadata', () => {
-    video.playbackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
-  });
-  video.addEventListener('ended', () => {
-    bgVideoIndex = (bgVideoIndex + 1) % bgVideoPaths.length;
-    playBackgroundVideo(bgVideoIndex);
+  bgVideoEls.forEach((el) => {
+    el.addEventListener('loadedmetadata', () => {
+      el.playbackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
+    });
+    el.addEventListener('ended', () => {
+      if (bgVideoEls[bgActiveSlot] === el) advanceBackgroundVideo();
+    });
   });
 
-  playBackgroundVideo(bgVideoIndex);
+  loadVideoIntoSlot(bgActiveSlot, bgVideoIndex);
+  const activeEl = bgVideoEls[bgActiveSlot];
+  activeEl.classList.add('is-active');
+  activeEl.play().catch(() => {}); // autoplay is safe here (video is muted), but ignore rare rejections
+
+  preloadNextBackgroundVideo();
 }
 
-function playBackgroundVideo(index) {
-  const video = document.getElementById('bg-video');
-  video.classList.remove('media-error');
-  document.getElementById('bg-video-source').src = bgVideoPaths[index];
-  video.load();
-  video.playbackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
-  video.play().catch(() => {}); // autoplay is safe here (video is muted), but ignore rare rejections
+function loadVideoIntoSlot(slot, pathIndex) {
+  const el = bgVideoEls[slot];
+  el.classList.remove('media-error');
+  el.src = bgVideoPaths[pathIndex];
+  el.load();
+  el.playbackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
+}
+
+// Buffers the next video (paused) in whichever slot isn't on screen, ready
+// to be crossfaded in the instant the active one ends.
+function preloadNextBackgroundVideo() {
+  const idleSlot = (bgActiveSlot + 1) % 2;
+  loadVideoIntoSlot(idleSlot, bgPreloadIndex);
+}
+
+// Crossfades from the active video into the already-preloaded one, then
+// starts preloading whatever comes after that.
+function advanceBackgroundVideo() {
+  const nextSlot = (bgActiveSlot + 1) % 2;
+  const nextEl = bgVideoEls[nextSlot];
+  const currentEl = bgVideoEls[bgActiveSlot];
+
+  bgVideoIndex = bgPreloadIndex;
+  bgActiveSlot = nextSlot;
+  bgPreloadIndex = (bgVideoIndex + 1) % bgVideoPaths.length;
+
+  nextEl.currentTime = 0;
+  nextEl.play().catch(() => {});
+  nextEl.classList.add('is-active');
+  currentEl.classList.remove('is-active');
+
+  preloadNextBackgroundVideo();
 }
 
 // A single video failing to load shouldn't kill the whole background — skip
 // to the next one in the playlist. Only fall through to the image once
 // every configured video has failed.
-function handleBackgroundVideoFailure() {
-  const video = document.getElementById('bg-video');
+function handleBackgroundVideoFailure(event) {
   bgVideoFailCount += 1;
   if (bgVideoFailCount >= bgVideoPaths.length) {
-    video.classList.add('media-error');
+    bgVideoEls.forEach((el) => el.classList.add('media-error'));
     return;
   }
-  bgVideoIndex = (bgVideoIndex + 1) % bgVideoPaths.length;
-  playBackgroundVideo(bgVideoIndex);
+
+  if (event.target === bgVideoEls[bgActiveSlot]) {
+    // The video on screen failed — jump straight to whatever's preloaded.
+    advanceBackgroundVideo();
+  } else {
+    // The one buffering in the background failed — try the next path instead.
+    bgPreloadIndex = (bgPreloadIndex + 1) % bgVideoPaths.length;
+    preloadNextBackgroundVideo();
+  }
 }
 
 // ---------- Background fallback chain: video -> image -> CSS gradient ----------
 function setupBackgroundFallback() {
-  const video = document.getElementById('bg-video');
   const image = document.getElementById('bg-image');
-
   image.addEventListener('error', () => image.classList.add('media-error'));
-  video.addEventListener('error', handleBackgroundVideoFailure);
 
-  // Some browsers don't fire 'error' on the <video> for a missing source
-  // until playback is attempted; catch that path too.
-  video.addEventListener('stalled', () => {
-    if (video.readyState === 0) handleBackgroundVideoFailure();
+  [document.getElementById('bg-video-1'), document.getElementById('bg-video-2')].forEach((video) => {
+    video.addEventListener('error', handleBackgroundVideoFailure);
+
+    // Some browsers don't fire 'error' on the <video> for a missing source
+    // until playback is attempted; catch that path too.
+    video.addEventListener('stalled', () => {
+      if (video.readyState === 0) handleBackgroundVideoFailure({ target: video });
+    });
   });
 }
 
@@ -215,6 +263,17 @@ function setupEnterGate() {
     const musicCfg = CONFIG.music;
     if (mpEnabled && musicCfg && musicCfg.autoplayAfterEnter) {
       console.log('[music] enter click received, attempting playback.');
+      // The background video (muted) has been autoplaying, silently, since
+      // page load — it's already partway through by the time this fires.
+      // The music is the audio track of that same clip (see config.js ->
+      // music.path), so restart the video from 0 right as the audio starts,
+      // rather than let it play from wherever it drifted to: from this
+      // instant on, picture and sound are the same file starting together,
+      // so they never fall out of sync (same file, same rate, same loop).
+      // Reuses the same crossfade the video playlist already does between
+      // clips (see advanceBackgroundVideo()) instead of a hard position
+      // jump, so the reset itself reads as a smooth transition too.
+      if (bgVideoPaths.length > 0) advanceBackgroundVideo();
       setupAudioVisualizer();
       playMusic();
     }
@@ -222,7 +281,6 @@ function setupEnterGate() {
     // Wait for the staggered reveal to finish before starting the name
     // glitch, so it doesn't fire while the text is still fading in.
     setTimeout(startVisualEffects, 2300);
-    registerView();
   }
 }
 
@@ -506,47 +564,39 @@ function drawVisualizer() {
   vizCtx.globalAlpha = 1;
 }
 
-// ---------- Local-only view counter ----------
-function setupViewCounter() {
-  if (!CONFIG.enableViewCounter) return;
-  const el = document.getElementById('view-counter');
-  const count = Number(localStorage.getItem('viewCount') || '0');
-  el.textContent = `${count} view${count === 1 ? '' : 's'}`;
-}
-
-function registerView() {
-  if (!CONFIG.enableViewCounter) return;
-  const count = Number(localStorage.getItem('viewCount') || '0') + 1;
-  localStorage.setItem('viewCount', String(count));
-  const el = document.getElementById('view-counter');
-  el.textContent = `${count} view${count === 1 ? '' : 's'}`;
-}
-
-// ---------- Name glitch effect ----------
+// ---------- Random glitch bursts (name + view count + volume control) ----------
+// Same random-burst treatment applied to #profile-name, #view-count and
+// #volume-control (see .glitching in style.css) — each element runs its own
+// independent timer/loop so they don't glitch in sync.
 const NAME_GLITCH_TRIGGER_CHANCE = 0.035; // checked every animation frame (~60fps)
 const NAME_GLITCH_COOLDOWN_MIN = 8; // frames before another burst can trigger
 const NAME_GLITCH_COOLDOWN_RANGE = 14; // + random(0, this) frames added to the cooldown
 const NAME_GLITCH_DURATION = 260; // ms the glitching class stays applied
 
-function startVisualEffects() {
-  startTypewriterEffect();
-
-  const nameEl = document.getElementById('profile-name');
-  if (!CONFIG.enableGlitchEffect) return;
-
+function startGlitchLoop(el) {
+  if (!el) return;
   let glitchTimer = 0;
 
   function loop() {
     requestAnimationFrame(loop);
     glitchTimer -= 1;
     if (glitchTimer <= 0 && Math.random() < NAME_GLITCH_TRIGGER_CHANCE) {
-      nameEl.classList.add('glitching');
+      el.classList.add('glitching');
       glitchTimer = NAME_GLITCH_COOLDOWN_MIN + Math.floor(Math.random() * NAME_GLITCH_COOLDOWN_RANGE);
-      setTimeout(() => nameEl.classList.remove('glitching'), NAME_GLITCH_DURATION);
+      setTimeout(() => el.classList.remove('glitching'), NAME_GLITCH_DURATION);
     }
   }
 
   requestAnimationFrame(loop);
+}
+
+function startVisualEffects() {
+  startTypewriterEffect();
+
+  if (!CONFIG.enableGlitchEffect) return;
+  startGlitchLoop(document.getElementById('profile-name'));
+  startGlitchLoop(document.getElementById('view-count'));
+  startGlitchLoop(document.getElementById('volume-control'));
 }
 
 // ---------- Custom cursor (desktop only) ----------

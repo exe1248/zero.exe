@@ -57,7 +57,19 @@ body::before {
   filter: grayscale(1) brightness(1.5);
 }
 
-.bg-video { z-index: 1; }
+/* A short crossfade between the two <video> elements — smooth rather than
+   an instant hard cut, since config.js -> backgroundVideoPaths is now a
+   single clip: every "next video" is just a freshly-reset copy of the same
+   footage (see advanceBackgroundVideo() in script.js), so blending them is
+   seamless rather than a ghosted mix of two different scenes. The next
+   clip is already fully preloaded by the time this toggles, so there's no
+   load gap for the fade to hide. */
+.bg-video {
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+.bg-video.is-active { opacity: 1; }
 .bg-image { z-index: 0; }
 
 .bg-media.media-error {
@@ -74,6 +86,47 @@ body::before {
     rgba(0, 0, 0, 0.35) 45%,
     rgba(0, 0, 0, 0.75) 100%
   );
+}
+
+/* ============================================================
+   Old-TV background effect (config.js -> enableCrtEffect)
+   ============================================================ */
+.crt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.crt-overlay::before {
+  /* Scanlines + a vignette darkening the edges like a curved tube screen. */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.35) 0px,
+      rgba(0, 0, 0, 0.35) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.65) 100%);
+  mix-blend-mode: overlay;
+  animation: crtFlicker 6.5s infinite;
+}
+
+@keyframes crtFlicker {
+  0%, 100% { opacity: 1; }
+  4%  { opacity: 0.86; }
+  6%  { opacity: 1; }
+  46% { opacity: 1; }
+  48% { opacity: 0.9; }
+  50% { opacity: 1; }
+  92% { opacity: 1; }
+  94% { opacity: 0.82; }
+  96% { opacity: 1; }
 }
 
 /* ============================================================
@@ -131,13 +184,16 @@ body::before {
   padding: 0.45rem 0.8rem;
   overflow: hidden;
 
-  /* Same glass treatment as .view-counter, so the two match. */
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.025);
   border-radius: 16px;
   backdrop-filter: blur(1) saturate(0);
   -webkit-backdrop-filter: blur(1) saturate(0);
   transition: max-width 0.3s ease;
+
+  /* Same slow-frequency breathing as .name/.view-count — see slowFrequency
+     above and startGlitchLoop() in script.js for the random burst below. */
+  animation: slowFrequency 5s ease-in-out infinite;
 }
 
 /* Expand slightly on hover/focus to reveal the volume slider — kept
@@ -145,6 +201,34 @@ body::before {
 .volume-control:hover,
 .volume-control:focus-within {
   max-width: 120px;
+}
+
+.volume-control.glitching {
+  animation: slowFrequency 5s ease-in-out infinite, nameJitter 0.26s steps(2, end);
+}
+
+/* No text to duplicate here, so the glitch burst ghosts the box itself —
+   same offset-and-clip trick as .name.glitching::before/::after. */
+.volume-control.glitching::before,
+.volume-control.glitching::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+}
+
+.volume-control.glitching::before {
+  opacity: 0.55;
+  clip-path: inset(0 0 55% 0);
+  transform: translate(-2.5px, -1.5px);
+}
+
+.volume-control.glitching::after {
+  opacity: 0.45;
+  clip-path: inset(55% 0 0 0);
+  transform: translate(2.5px, 1.5px);
 }
 
 .mute-btn {
@@ -222,26 +306,67 @@ body::before {
 }
 
 /* ============================================================
-   View counter
+   View counter — a bare number, top-right, no label or background box.
+   Same font family, color and effects as .name (slow-frequency breathing
+   via the shared `slowFrequency` animation, the `freqSlice` sweep, and the
+   same random glitch bursts — see startVisualEffects() in script.js), but
+   sized like .phrase instead of the name's larger heading size.
    ============================================================ */
-.view-counter {
+.view-count {
   position: fixed;
   top: 18px;
   right: 18px;
   z-index: 10;
-  padding: 0.45rem 0.9rem;
-  font-family: 'Space Mono', monospace;
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: clamp(0.9rem, 3vw, 1rem); /* same as .phrase */
+  letter-spacing: -0.02em;
+  color: #9a9a9f;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.4);
+  animation: slowFrequency 5s ease-in-out infinite;
+}
 
-  /* Same glass treatment as .volume-control, so both corner boxes match. */
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.025);
-  border-radius: 16px;
-  backdrop-filter: blur(1) saturate(0);
-  -webkit-backdrop-filter: blur(1) saturate(0);
+.view-count-text {
+  position: relative;
+  z-index: 1;
+}
+
+/* A bright band sweeps top-to-bottom through the digits themselves, same
+   technique as .name-slice. */
+.view-count-slice {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  color: #fff;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  clip-path: inset(0 0 100% 0);
+  opacity: 0;
+  animation: freqSlice 6s ease-in-out infinite;
+}
+
+.view-count.glitching {
+  animation: nameJitter 0.26s steps(2, end);
+}
+
+.view-count.glitching::before,
+.view-count.glitching::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  color: inherit;
+}
+
+.view-count.glitching::before {
+  opacity: 0.55;
+  clip-path: inset(0 0 55% 0);
+  transform: translate(-2.5px, -1.5px);
+}
+
+.view-count.glitching::after {
+  opacity: 0.45;
+  clip-path: inset(55% 0 0 0);
+  transform: translate(2.5px, 1.5px);
 }
 
 /* ============================================================
@@ -730,7 +855,7 @@ body.custom-cursor-active * {
     max-width: 100px;
   }
 
-  .view-counter {
+  .view-count {
     top: 12px;
     right: 12px;
   }

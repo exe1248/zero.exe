@@ -5,23 +5,26 @@
 
 const CONFIG = {
   // ---- Identity ----
-  profileName: "gui",
+  profileName: "exe",
 
   // Phrases the typewriter effect cycles through, one at a time, looping
   // back to the first once the last one finishes (see enableTypewriterEffect
   // below). If that effect is disabled, only phrases[0] is shown, static.
-  phrases: ["building things.", "lost in thought.", "locked in.", "in motion."],
+  // A single entry just retypes the same phrase on loop.
+  phrases: ["building things."],
 
   // ---- Asset paths (relative to index.html) ----
   // These files do not need to exist yet — the site falls back
   // gracefully if any of them are missing. Drop your real files
   // in assets/ using these exact names, or edit the paths below.
-  avatarPath: "assets/avatar.jpg",
+  avatarPath: "assets/avatar3.jpg",
 
   // One or more background videos, played in order and looping back to the
   // first once the last one ends. A single entry just plays that one video
   // on repeat, same as before — add more entries to cycle through them.
-  backgroundVideoPaths: ["assets/background.mp4", "assets/video2.mp4", "assets/video3.mp4", "assets/video4.mp4"],
+  // Same file as music.path below — its audio track is what plays as the
+  // background music, its video track is what plays (muted) as the background.
+  backgroundVideoPaths: ["assets/video_musica.mp4"],
   backgroundImagePath: "assets/background.jpg",
 
   // ---- Discord link icon ----
@@ -58,9 +61,9 @@ const CONFIG = {
 
   // ---- Site metadata (SEO / social link previews) ----
   siteMeta: {
-    title: "gui",
+    title: "exe",
     description: "building things.",
-    image: "assets/avatar.jpg",
+    image: "assets/avatar3.jpg",
     themeColor: "#0a0a0a",
   },
 
@@ -69,6 +72,11 @@ const CONFIG = {
   enableViewCounter: true,
   enableGlitchEffect: true,
   enableTypewriterEffect: true,
+
+  // Old-TV look over the background video/image: scanlines, a vignette,
+  // a subtle brightness flicker, and an occasional rolling sync line.
+  // Purely decorative — set to false to go back to a plain background.
+  enableCrtEffect: true,
 
   // ---- Custom cursor (desktop only) ----
   // Falls back to a small glowing ball (with a fading dot trail) if
@@ -88,10 +96,14 @@ const CONFIG = {
   // autoplay before a user gesture) — the only on-screen control is the
   // volume box, there's no play/pause/skip UI. A missing/broken file just
   // fails silently, the volume control stays but does nothing audible.
+  // Same file as backgroundVideoPaths above — an <audio> element can play
+  // just the audio track out of a video file fine, so the one file serves
+  // both the visuals (muted, in the background) and the music (unmuted,
+  // through this player).
   music: {
     enabled: true,
     autoplayAfterEnter: true,
     defaultVolume: 0.3,
-    path: "assets/music/song1.mp3",
+    path: "assets/video_musica.mp4",
   },
 };
