@@ -42,7 +42,7 @@ const CONFIG = {
   // API call and no live data.
   github: {
     enabled: true,
-    username: "gui1248",
+    username: "exe1248",
     openInNewTab: true,
   },
 
