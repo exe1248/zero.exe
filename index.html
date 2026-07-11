@@ -11,17 +11,23 @@
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="apple-touch-icon" href="assets/favicon.png">
 
-  <!-- Open Graph / social link previews (see config.js -> siteMeta) -->
+  <!-- Open Graph / social link previews (see config.js -> siteMeta).
+       og:url/og:image and twitter:image are absolute (the public GitHub
+       Pages URL) rather than relative — social-preview crawlers fetch these
+       externally and can't reliably resolve a relative path, unlike the
+       page's own same-origin asset loads (script/style/img src, which stay
+       relative throughout the site). -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="exe">
   <meta property="og:description" content="building things.">
-  <meta property="og:image" content="assets/avatar3.jpg">
+  <meta property="og:url" content="https://exe1248.github.io/zero.exe/">
+  <meta property="og:image" content="https://exe1248.github.io/zero.exe/assets/avatar3.jpg">
 
   <!-- Twitter card -->
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="exe">
   <meta name="twitter:description" content="building things.">
-  <meta name="twitter:image" content="assets/avatar3.jpg">
+  <meta name="twitter:image" content="https://exe1248.github.io/zero.exe/assets/avatar3.jpg">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

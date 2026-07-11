@@ -60,10 +60,14 @@ const CONFIG = {
   },
 
   // ---- Site metadata (SEO / social link previews) ----
+  // url/image are absolute (the public GitHub Pages URL), unlike every
+  // other asset path in this file — social-preview crawlers fetch these
+  // externally and need a full URL, not a page-relative one.
   siteMeta: {
     title: "exe",
     description: "building things.",
-    image: "assets/avatar3.jpg",
+    url: "https://exe1248.github.io/zero.exe/",
+    image: "https://exe1248.github.io/zero.exe/assets/avatar3.jpg",
     themeColor: "#0a0a0a",
   },
 

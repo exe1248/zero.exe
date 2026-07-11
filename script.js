@@ -80,6 +80,7 @@ function applySiteMeta() {
   setMeta('meta[name="theme-color"]', meta.themeColor);
   setMeta('meta[property="og:title"]', meta.title);
   setMeta('meta[property="og:description"]', meta.description);
+  setMeta('meta[property="og:url"]', meta.url);
   setMeta('meta[property="og:image"]', meta.image);
   setMeta('meta[name="twitter:title"]', meta.title);
   setMeta('meta[name="twitter:description"]', meta.description);
@@ -102,7 +103,7 @@ function applySiteMeta() {
 const TITLE_BLANK = '​'; // zero-width space
 function startBrowserTitleAnimation() {
   const cfg = CONFIG.browserTitle;
-  const fallbackTitle = (CONFIG.siteMeta && CONFIG.siteMeta.title) || CONFIG.profileName || 'gui';
+  const fallbackTitle = (CONFIG.siteMeta && CONFIG.siteMeta.title) || CONFIG.profileName || 'exe';
 
   if (!cfg || !cfg.enabled || !cfg.text) {
     document.title = fallbackTitle;
