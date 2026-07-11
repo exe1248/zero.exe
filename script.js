@@ -3,7 +3,7 @@
 // ============================================================
 
 const DEFAULT_VOLUME = 0.3;
-const BACKGROUND_VIDEO_PLAYBACK_RATE = 0.4; // slow motion
+const BACKGROUND_VIDEO_PLAYBACK_RATE = 0.8; // slow motion
 
 // Background music state (see initMusicPlayer() and friends near the bottom).
 let mpAudio = null;
@@ -13,6 +13,11 @@ let mpEnabled = false;
 let vizAnalyser = null;
 let vizDataArray = null;
 let vizSetupDone = false;
+
+// Background video playlist state (see setupBackgroundVideoPlaylist()).
+let bgVideoPaths = [];
+let bgVideoIndex = 0;
+let bgVideoFailCount = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
   applyConfig();
@@ -47,15 +52,8 @@ function applyConfig() {
 
   document.getElementById('avatar').src = CONFIG.avatarPath;
 
-  const video = document.getElementById('bg-video');
-  document.getElementById('bg-video-source').src = CONFIG.backgroundVideoPath;
   document.getElementById('bg-image').src = CONFIG.backgroundImagePath;
-  video.load();
-  video.playbackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
-  // Some browsers reset playbackRate once metadata loads; reapply to be safe.
-  video.addEventListener('loadedmetadata', () => {
-    video.playbackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
-  });
+  setupBackgroundVideoPlaylist();
 
   if (!CONFIG.enableViewCounter) {
     document.getElementById('view-counter').style.display = 'none';
@@ -83,29 +81,47 @@ function applySiteMeta() {
 }
 
 // ---------- Browser tab title animation (config.js -> browserTitle) ----------
-// Types `text` out character by character, pauses, deletes it, pauses, and
-// repeats forever — independent of the click-to-enter gate, since there's
-// no autoplay restriction on document.title.
+// Types `text` out character by character, pauses, deletes it all the way
+// down to nothing, pauses, and repeats forever — independent of the
+// click-to-enter gate, since there's no autoplay restriction on
+// document.title.
+//
+// document.title must never literally become "": Chrome (and others) fall
+// back to showing the tab's URL in place of a truly blank title, which
+// would flash distractingly every deleting cycle. To still get the visual
+// effect of the tab going empty, the "0 characters" frame is rendered as a
+// zero-width space (an invisible character) instead of "" — non-empty as
+// far as the browser is concerned, so the URL fallback never kicks in, but
+// nothing visible is left in the tab either.
+const TITLE_BLANK = '​'; // zero-width space
 function startBrowserTitleAnimation() {
   const cfg = CONFIG.browserTitle;
+  const fallbackTitle = (CONFIG.siteMeta && CONFIG.siteMeta.title) || CONFIG.profileName || 'gui';
+
   if (!cfg || !cfg.enabled || !cfg.text) {
-    document.title = (CONFIG.siteMeta && CONFIG.siteMeta.title) || CONFIG.profileName;
+    document.title = fallbackTitle;
     return;
   }
 
   const text = cfg.text;
   const cursor = cfg.cursor || '';
-  let charIndex = 0;
+  const MIN_CHARS = 0;
+  let charIndex = MIN_CHARS;
   let deleting = false;
+
+  function setTitle(index) {
+    const shown = text.slice(0, index);
+    document.title = shown ? shown + cursor : TITLE_BLANK;
+  }
 
   function tick() {
     charIndex += deleting ? -1 : 1;
-    document.title = text.slice(0, charIndex) + cursor;
+    setTitle(charIndex);
 
     if (!deleting && charIndex >= text.length) {
       deleting = true;
       setTimeout(tick, cfg.pauseAfterTyping ?? 1800);
-    } else if (deleting && charIndex <= 0) {
+    } else if (deleting && charIndex <= MIN_CHARS) {
       deleting = false;
       setTimeout(tick, cfg.pauseAfterDeleting ?? 500);
     } else {
@@ -113,7 +129,58 @@ function startBrowserTitleAnimation() {
     }
   }
 
+  setTitle(charIndex); // show the floor character immediately, before the first tick fires
+
   setTimeout(tick, cfg.typingSpeed ?? 250);
+}
+
+// ---------- Background video playlist (config.js -> backgroundVideoPaths) ----------
+// Plays each video in order; when one ends, the next one starts, wrapping
+// back to the first after the last — a single-entry list just plays that
+// one video on repeat, same as the old single-path behavior.
+function setupBackgroundVideoPlaylist() {
+  const video = document.getElementById('bg-video');
+  bgVideoPaths = (CONFIG.backgroundVideoPaths || []).filter((p) => !!p);
+  bgVideoIndex = 0;
+  bgVideoFailCount = 0;
+
+  if (bgVideoPaths.length === 0) {
+    video.classList.add('media-error'); // nothing configured — fall straight to the image
+    return;
+  }
+
+  video.addEventListener('loadedmetadata', () => {
+    video.playbackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
+  });
+  video.addEventListener('ended', () => {
+    bgVideoIndex = (bgVideoIndex + 1) % bgVideoPaths.length;
+    playBackgroundVideo(bgVideoIndex);
+  });
+
+  playBackgroundVideo(bgVideoIndex);
+}
+
+function playBackgroundVideo(index) {
+  const video = document.getElementById('bg-video');
+  video.classList.remove('media-error');
+  document.getElementById('bg-video-source').src = bgVideoPaths[index];
+  video.load();
+  video.playbackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
+  video.play().catch(() => {}); // autoplay is safe here (video is muted), but ignore rare rejections
+}
+
+// A single video failing to load shouldn't kill the whole background — skip
+// to the next one in the playlist. Only fall through to the image once
+// every configured video has failed.
+function handleBackgroundVideoFailure() {
+  const video = document.getElementById('bg-video');
+  bgVideoFailCount += 1;
+  if (bgVideoFailCount >= bgVideoPaths.length) {
+    video.classList.add('media-error');
+    return;
+  }
+  bgVideoIndex = (bgVideoIndex + 1) % bgVideoPaths.length;
+  playBackgroundVideo(bgVideoIndex);
 }
 
 // ---------- Background fallback chain: video -> image -> CSS gradient ----------
@@ -121,13 +188,13 @@ function setupBackgroundFallback() {
   const video = document.getElementById('bg-video');
   const image = document.getElementById('bg-image');
 
-  video.addEventListener('error', () => video.classList.add('media-error'));
   image.addEventListener('error', () => image.classList.add('media-error'));
+  video.addEventListener('error', handleBackgroundVideoFailure);
 
   // Some browsers don't fire 'error' on the <video> for a missing source
   // until playback is attempted; catch that path too.
   video.addEventListener('stalled', () => {
-    if (video.readyState === 0) video.classList.add('media-error');
+    if (video.readyState === 0) handleBackgroundVideoFailure();
   });
 }
 

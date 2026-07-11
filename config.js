@@ -17,7 +17,11 @@ const CONFIG = {
   // gracefully if any of them are missing. Drop your real files
   // in assets/ using these exact names, or edit the paths below.
   avatarPath: "assets/avatar.jpg",
-  backgroundVideoPath: "assets/background.mp4",
+
+  // One or more background videos, played in order and looping back to the
+  // first once the last one ends. A single entry just plays that one video
+  // on repeat, same as before — add more entries to cycle through them.
+  backgroundVideoPaths: ["assets/background.mp4", "assets/video2.mp4", "assets/video3.mp4", "assets/video4.mp4"],
   backgroundImagePath: "assets/background.jpg",
 
   // ---- Discord link icon ----
@@ -44,7 +48,7 @@ const CONFIG = {
   // enabled to false to use a plain static tab title instead.
   browserTitle: {
     enabled: true,
-    text: "1gui",
+    text: "zero.exe_",
     typingSpeed: 250,
     deletingSpeed: 120,
     pauseAfterTyping: 1800,
@@ -54,7 +58,7 @@ const CONFIG = {
 
   // ---- Site metadata (SEO / social link previews) ----
   siteMeta: {
-    title: "1gui",
+    title: "gui",
     description: "building things.",
     image: "assets/avatar.jpg",
     themeColor: "#0a0a0a",

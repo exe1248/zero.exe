@@ -5,20 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Static fallback title — overridden by the browserTitle animation in
        script.js (see config.js -> browserTitle) once the page loads. -->
-  <title>1gui</title>
+  <title>gui</title>
   <meta name="description" content="building things.">
   <meta name="theme-color" content="#0a0a0a">
   <link rel="icon" href="assets/favicon.png">
 
   <!-- Open Graph / social link previews (see config.js -> siteMeta) -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="1gui">
+  <meta property="og:title" content="gui">
   <meta property="og:description" content="building things.">
   <meta property="og:image" content="assets/avatar.jpg">
 
   <!-- Twitter card -->
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="1gui">
+  <meta name="twitter:title" content="gui">
   <meta name="twitter:description" content="building things.">
   <meta name="twitter:image" content="assets/avatar.jpg">
 
@@ -30,8 +30,12 @@
 </head>
 <body>
 
-  <!-- ===== Background: video -> image -> CSS gradient ===== -->
-  <video class="bg-media bg-video" id="bg-video" autoplay loop muted playsinline preload="auto">
+  <!-- ===== Background: video (playlist) -> image -> CSS gradient =====
+       No "loop" attribute here on purpose — looping/cycling between the
+       videos in config.js -> backgroundVideoPaths is handled in script.js
+       via the 'ended' event instead, so a single native loop can't run
+       forever without ever reaching 'ended'. -->
+  <video class="bg-media bg-video" id="bg-video" autoplay muted playsinline preload="auto">
     <source id="bg-video-source" src="assets/background.mp4" type="video/mp4">
   </video>
   <img class="bg-media bg-image" id="bg-image" src="assets/background.jpg" alt="">
@@ -61,9 +65,9 @@
       <img class="avatar" id="avatar" src="assets/avatar.jpg" alt="Avatar">
     </div>
 
-    <h1 class="name" id="profile-name" data-text="1gui">
-      <span class="name-text" id="profile-name-text">1gui</span>
-      <span class="name-slice" id="profile-name-slice" aria-hidden="true">1gui</span>
+    <h1 class="name" id="profile-name" data-text="gui">
+      <span class="name-text" id="profile-name-text">gui</span>
+      <span class="name-slice" id="profile-name-slice" aria-hidden="true">gui</span>
     </h1>
 
     <p class="phrase" id="phrase"><span class="phrase-text" id="phrase-text"></span><span class="phrase-cursor" id="phrase-cursor" aria-hidden="true"></span></p>

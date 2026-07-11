@@ -25,10 +25,10 @@ Everything you can customize lives in **`config.js`**:
 
 ```js
 const CONFIG = {
-  profileName: "1gui",
+  profileName: "gui",
   phrases: ["building things ", "lost in thought.", "locked in", "in motion."],
   avatarPath: "assets/avatar.jpg",
-  backgroundVideoPath: "assets/background.mp4",
+  backgroundVideoPaths: ["assets/background.mp4"],
   backgroundImagePath: "assets/background.jpg",
 
   discord: {
@@ -44,7 +44,7 @@ const CONFIG = {
 
   browserTitle: {
     enabled: true,
-    text: "1gui",
+    text: "gui",
     typingSpeed: 250,
     deletingSpeed: 120,
     pauseAfterTyping: 1800,
@@ -53,7 +53,7 @@ const CONFIG = {
   },
 
   siteMeta: {
-    title: "1gui",
+    title: "gui",
     description: "building things.",
     image: "assets/avatar.jpg",
     themeColor: "#0a0a0a",
@@ -83,16 +83,31 @@ the matching path in `config.js` if you'd rather use different filenames):
 
 | File                        | Purpose                              | Required? |
 |------------------------------|---------------------------------------|-----------|
-| `assets/background.mp4`     | Fullscreen background video           | No |
-| `assets/background.jpg`     | Background image, used if video fails | No |
+| `assets/background.mp4`     | Fullscreen background video (playlist) | No |
+| `assets/background.jpg`     | Background image, used if every video fails | No |
 | `assets/avatar.jpg`         | Profile picture in the card           | No |
 | `assets/music/song1.mp3`     | Looping background track              | No |
 | `assets/favicon.png`        | Browser tab icon                      | No |
 | `assets/cursor.png`         | Custom cursor image (desktop only)    | No |
 
+**Background video playlist:** `config.js -> backgroundVideoPaths` is a
+list, not a single file — drop as many videos in `assets/` as you like and
+list them there:
+```js
+backgroundVideoPaths: [
+  "assets/background.mp4",
+  "assets/background2.mp4",
+],
+```
+They play in that order; when one ends, the next one starts automatically,
+looping back to the first after the last. A single entry just plays that
+one video on repeat, same as before. If a video in the list fails to load,
+it's skipped in favor of the next one — the image fallback only kicks in
+once every listed video has failed.
+
 Fallback chain if a file is missing or fails to load:
 
-1. `background.mp4` (video) →
+1. `backgroundVideoPaths` (video playlist) →
 2. `background.jpg` (image) →
 3. animated dark CSS gradient (always present, needs no file)
 
@@ -138,13 +153,18 @@ sweeps through the logo every few seconds (see `iconSlowFrequency` /
 
 ## 4. Browser tab title animation
 
-The browser tab title types itself out, pauses, deletes itself, pauses, and
-repeats — controlled entirely by `config.js -> browserTitle`:
+The browser tab title types itself out, pauses, deletes back down to a
+single leftover character (never further), pauses, and repeats — controlled
+entirely by `config.js -> browserTitle`. For the default `text: "gui"` that
+looks like: `g` → `gu` → `gui` → *pause* → `gu` → `g` → *pause* → repeat.
+It's deliberately floored at one character instead of fully erasing to `""`
+— an empty `document.title` makes some browsers (Chrome included) show the
+tab's URL instead, which would flash on every cycle.
 
 ```js
 browserTitle: {
   enabled: true,
-  text: "1gui",        // the string that gets typed/deleted
+  text: "gui",         // the string that gets typed/deleted
   typingSpeed: 250,     // ms per character while typing
   deletingSpeed: 120,   // ms per character while deleting
   pauseAfterTyping: 1800,   // ms to hold once fully typed
@@ -167,7 +187,7 @@ pasted into Discord, Twitter/X, iMessage, etc.:
 
 ```js
 siteMeta: {
-  title: "1gui",
+  title: "gui",
   description: "building things.",
   image: "assets/avatar.jpg",
   themeColor: "#0a0a0a",
@@ -307,14 +327,14 @@ works. It's ready to publish as-is; you only need to push it somewhere.
 2. No build command needed — leave it blank / static.
 3. Link: `https://PROJECT-NAME.netlify.app`.
 
-### About getting a link like `guns.lol/1gui`
-You can't get a path exactly like `https://guns.lol/1gui` unless you own or
+### About getting a link like `guns.lol/gui`
+You can't get a path exactly like `https://guns.lol/gui` unless you own or
 control the `guns.lol` domain — that's someone else's domain, not something
 any host can grant you. To get a similarly short, clean link of your own,
 you have two real options:
 - Use one of the **free platform subdomains** above (`*.vercel.app`,
   `*.netlify.app`, or `USERNAME.github.io`), or
-- Buy a **custom domain** (e.g. `1gui.xyz`, `1gui.dev`, `gui.bio` — cheap
+- Buy a **custom domain** (e.g. `gui.xyz`, `gui.dev`, `gui.bio` — cheap
   TLDs, a few dollars a year) and point it at whichever host you chose
   above (all three support custom domains for free once you own one).
 
