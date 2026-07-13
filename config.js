@@ -73,7 +73,7 @@ const CONFIG = {
 
   // ---- Look & feel ----
   accentColor: "#8f8f8f",
-  enableViewCounter: true,
+  enableViewCounter: false,
   enableGlitchEffect: true,
   enableTypewriterEffect: true,
 

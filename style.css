@@ -11,6 +11,17 @@
 
 :root {
   --accent: #7f5af0;
+
+  /* Both palettes kept defined so switching back is a one-line change —
+     just repoint --cursor-color / --cursor-color-dark below. */
+  --cursor-color-red: #ff2b2b;
+  --cursor-color-red-dark: #4a1414;
+  --cursor-color-purple: #7f5af0;
+  --cursor-color-purple-dark: #2e1f4d;
+
+  /* Active palette — red. */
+  --cursor-color: var(--cursor-color-red);
+  --cursor-color-dark: var(--cursor-color-red-dark);
 }
 
 html, body {
@@ -159,7 +170,7 @@ body::before {
 .enter-hint {
   font-size: clamp(0.95rem, 3vw, 1.1rem);
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--cursor-color);
   animation: pulse 2s ease-in-out infinite;
 }
 
@@ -179,16 +190,11 @@ body::before {
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  max-width: 44px;
-  padding: 0.45rem 0.8rem;
+  gap: 0.52rem;
+  max-width: 46px;
+  padding: 0.47rem 0.83rem;
   overflow: hidden;
 
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.025);
-  border-radius: 16px;
-  backdrop-filter: blur(1) saturate(0);
-  -webkit-backdrop-filter: blur(1) saturate(0);
   transition: max-width 0.3s ease;
 
   /* Same slow-frequency breathing as .name/.view-count — see slowFrequency
@@ -200,44 +206,19 @@ body::before {
    compact and out of the way the rest of the time. */
 .volume-control:hover,
 .volume-control:focus-within {
-  max-width: 120px;
+  max-width: 125px;
 }
 
 .volume-control.glitching {
   animation: slowFrequency 5s ease-in-out infinite, nameJitter 0.26s steps(2, end);
 }
 
-/* No text to duplicate here, so the glitch burst ghosts the box itself —
-   same offset-and-clip trick as .name.glitching::before/::after. */
-.volume-control.glitching::before,
-.volume-control.glitching::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: rgba(255, 255, 255, 0.05);
-  pointer-events: none;
-}
-
-.volume-control.glitching::before {
-  opacity: 0.55;
-  clip-path: inset(0 0 55% 0);
-  transform: translate(-2.5px, -1.5px);
-}
-
-.volume-control.glitching::after {
-  opacity: 0.45;
-  clip-path: inset(55% 0 0 0);
-  transform: translate(2.5px, 1.5px);
-}
-
 .mute-btn {
-  width: 22px;
-  height: 22px;
+  width: 23px;
+  height: 23px;
   border: none;
   background: transparent;
-  color: #fff;
-  font-size: 0.9rem;
+  color: var(--cursor-color);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -245,17 +226,22 @@ body::before {
   flex-shrink: 0;
 }
 
+.volume-icon {
+  width: 19px;
+  height: 19px;
+}
+
 .volume-slider {
   width: 0;
   opacity: 0;
-  accent-color: var(--accent);
+  accent-color: var(--cursor-color);
   cursor: pointer;
   transition: width 0.25s ease, opacity 0.25s ease;
 }
 
 .volume-control:hover .volume-slider,
 .volume-control:focus-within .volume-slider {
-  width: 56px;
+  width: 59px;
   opacity: 1;
 }
 
@@ -263,11 +249,11 @@ body::before {
    than hiding it behind an interaction that can't happen. */
 @media (hover: none) {
   .volume-control {
-    max-width: 120px;
+    max-width: 125px;
   }
 
   .volume-slider {
-    width: 56px;
+    width: 59px;
     opacity: 1;
   }
 }
@@ -498,7 +484,7 @@ body::before {
   font-weight: 500;
   font-size: clamp(1.9rem, 7vw, 2.5rem);
   letter-spacing: -0.02em;
-  color: #9a9a9f;
+  color: var(--cursor-color);
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.4);
 }
 
@@ -590,7 +576,7 @@ body::before {
   font-weight: 400;
   font-size: clamp(0.9rem, 3vw, 1rem);
   letter-spacing: 0.03em;
-  color: #a8a8ad;
+  color: var(--cursor-color);
   margin-bottom: 1.4rem;
   min-height: 1.4em; /* keeps layout stable while the typewriter erases the text */
 }
@@ -634,36 +620,30 @@ body::before {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
-  color: #b4b4b9;
-
-  /* Same glass treatment as .volume-control, so it reads as one family. */
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.025);
-  backdrop-filter: blur(1) saturate(0);
-  -webkit-backdrop-filter: blur(1) saturate(0);
+  color: var(--cursor-color-dark);
   transition: scale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease;
 }
 
 .connect-link:hover {
   scale: 1.18;
-  color: #fff;
+  color: var(--cursor-color);
 }
 
 .connect-icon-wrap {
   position: relative;
   display: block;
-  width: 19px;
-  height: 19px;
+  width: 38px;
+  height: 38px;
 }
 
 .connect-icon {
   position: absolute;
   inset: 0;
-  width: 19px;
-  height: 19px;
+  width: 38px;
+  height: 38px;
   fill: currentColor;
 }
 
@@ -777,7 +757,7 @@ body.custom-cursor-active * {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+  background: radial-gradient(circle, var(--cursor-color) 0%, transparent 70%);
   filter: blur(7px);
   opacity: 0.22;
 }
@@ -786,13 +766,36 @@ body.custom-cursor-active * {
   display: none;
 }
 
-/* Small flat ball — the default cursor when no custom image is set. */
+/* Small flat "+" mark — the default cursor when no custom image is set.
+   Built from two bars via pseudo-elements rather than a background-image,
+   so it inherits --cursor-color and scales with .cursor-hover like the
+   ball it replaced. */
 .cursor-ball {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
+  background: transparent;
+}
+
+.cursor-ball::before,
+.cursor-ball::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  background: var(--cursor-color);
   box-shadow: 0 0 3px 0.5px rgba(0, 0, 0, 0.3);
+}
+
+.cursor-ball::before {
+  width: 100%;
+  height: 1.25px;
+  transform: translate(-50%, -50%);
+}
+
+.cursor-ball::after {
+  width: 1.25px;
+  height: 100%;
+  transform: translate(-50%, -50%);
 }
 
 .cursor-image {
@@ -810,29 +813,17 @@ body.custom-cursor-active * {
   display: block;
 }
 
-/* ---------- Trail of fading dots left behind the ball ---------- */
+/* ---------- Fading line trail left behind the cursor ---------- */
+/* A single stroke drawn on a full-viewport canvas (see spawnTrailPoint /
+   drawTrail in script.js) rather than stamping individual DOM dots — the
+   line's older end fades out continuously instead of a chain of discrete
+   shapes disappearing one at a time. */
 .cursor-trail-layer {
+  display: block;
   position: fixed;
   inset: 0;
   z-index: 9998;
   pointer-events: none;
-}
-
-.cursor-trail-dot {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
-  transform: translate(-50%, -50%);
-  animation: cursorTrailFade 1s ease-out forwards;
-}
-
-@keyframes cursorTrailFade {
-  0%   { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
 }
 
 /* ============================================================

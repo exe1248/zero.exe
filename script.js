@@ -386,14 +386,22 @@ function playMusic() {
     });
 }
 
+// SVG icon (not an emoji) so its color follows --cursor-color via .mute-btn's
+// `color` instead of rendering with the OS's fixed-color emoji glyph.
+const VOLUME_ICON_SPEAKER = '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>';
+const VOLUME_ICON_WAVE_NEAR = '<path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>';
+const VOLUME_ICON_WAVE_FAR = '<path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>';
+
 function updateMuteIcon(volume, muted) {
   const icon = document.getElementById('volume-icon');
   if (muted || volume === 0) {
-    icon.textContent = '🔇';
+    icon.innerHTML = VOLUME_ICON_SPEAKER
+      + '<line x1="23" y1="9" x2="17" y2="15"></line>'
+      + '<line x1="17" y1="9" x2="23" y2="15"></line>';
   } else if (volume < 0.5) {
-    icon.textContent = '🔉';
+    icon.innerHTML = VOLUME_ICON_SPEAKER + VOLUME_ICON_WAVE_NEAR;
   } else {
-    icon.textContent = '🔊';
+    icon.innerHTML = VOLUME_ICON_SPEAKER + VOLUME_ICON_WAVE_NEAR + VOLUME_ICON_WAVE_FAR;
   }
 }
 
@@ -536,7 +544,7 @@ function drawVisualizer() {
 
   const barGap = w / VIZ_BAND_COUNT;
   const barWidth = Math.max(1, barGap * 0.5);
-  const accent = (getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#8f8f8f').trim();
+  const accent = (getComputedStyle(document.documentElement).getPropertyValue('--cursor-color') || '#ff2b2b').trim();
 
   vizCtx.lineCap = 'round';
   vizCtx.strokeStyle = accent;
@@ -601,13 +609,14 @@ function startVisualEffects() {
 }
 
 // ---------- Custom cursor (desktop only) ----------
-// Falls back to a small glowing ball (with a fading dot trail) if
+// Falls back to a small glowing ball (with a fading line trail) if
 // config.js -> customCursor.imagePath fails to load, and is skipped
 // entirely on touch devices or when the user has "reduce motion" enabled,
 // since the whole point is a smoothly following animated cursor.
 const CURSOR_HOVER_SELECTOR = 'a, button, input, [role="button"], .mute-btn, .enter-screen, .volume-slider, .link-btn, .avatar-wrap, .name, .phrase, .connect-link';
-const CURSOR_TRAIL_MIN_DISTANCE = 7; // px moved before spawning another trail dot
-const CURSOR_TRAIL_MAX_DOTS = 45; // safety cap on concurrent trail dots
+const CURSOR_TRAIL_MIN_DISTANCE = 7; // px moved before recording another trail point
+const CURSOR_TRAIL_MAX_POINTS = 80; // safety cap on stored trail points
+const CURSOR_TRAIL_LIFETIME_MS = 400; // how long a point takes to fade out of the line
 
 function setupCustomCursor() {
   const cfg = CONFIG.customCursor;
@@ -646,7 +655,20 @@ function setupCustomCursor() {
     probe.src = cfg.imagePath;
   }
 
-  const trailLayer = document.getElementById('cursor-trail-layer');
+  const trailCanvas = document.getElementById('cursor-trail-layer');
+  const trailCtx = trailCanvas ? trailCanvas.getContext('2d') : null;
+  const trailColor = (getComputedStyle(document.documentElement).getPropertyValue('--cursor-color') || '#ff2b2b').trim();
+  const trailPoints = [];
+
+  function resizeTrailCanvas() {
+    if (!trailCanvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    trailCanvas.width = Math.round(window.innerWidth * dpr);
+    trailCanvas.height = Math.round(window.innerHeight * dpr);
+    trailCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resizeTrailCanvas();
+  window.addEventListener('resize', resizeTrailCanvas);
 
   let mouseX = window.innerWidth / 2;
   let mouseY = window.innerHeight / 2;
@@ -666,17 +688,45 @@ function setupCustomCursor() {
     if (!e.relatedTarget) root.classList.remove('cursor-visible');
   });
 
-  function spawnTrailDot(x, y) {
-    if (!trailLayer) return;
-    if (trailLayer.childElementCount >= CURSOR_TRAIL_MAX_DOTS) {
-      trailLayer.firstElementChild.remove();
+  function pushTrailPoint(x, y) {
+    trailPoints.push({ x, y, t: performance.now() });
+    if (trailPoints.length > CURSOR_TRAIL_MAX_POINTS) trailPoints.shift();
+  }
+
+  // Redrawn every frame regardless of movement, so the line keeps fading
+  // out (rather than freezing mid-fade) even once the cursor stops.
+  function drawTrail() {
+    if (!trailCtx) return;
+    const now = performance.now();
+    while (trailPoints.length && now - trailPoints[0].t > CURSOR_TRAIL_LIFETIME_MS) {
+      trailPoints.shift();
     }
-    const dot = document.createElement('div');
-    dot.className = 'cursor-trail-dot';
-    dot.style.left = `${x}px`;
-    dot.style.top = `${y}px`;
-    dot.addEventListener('animationend', () => dot.remove());
-    trailLayer.appendChild(dot);
+
+    trailCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    if (trailPoints.length < 2) return;
+
+    // 'butt' rather than 'round' — round caps leave a small overlapping
+    // semicircle at both ends of every segment, which reads as a chain of
+    // dots along the line instead of one clean stroke.
+    trailCtx.lineCap = 'butt';
+    trailCtx.lineWidth = 1;
+    trailCtx.strokeStyle = trailColor;
+
+    // One continuous line, drawn as per-segment strokes so each segment can
+    // carry its own opacity — newest segment solid, oldest faded to nothing.
+    for (let i = 1; i < trailPoints.length; i++) {
+      const prev = trailPoints[i - 1];
+      const point = trailPoints[i];
+      const age = now - point.t;
+      const alpha = Math.max(0, 1 - age / CURSOR_TRAIL_LIFETIME_MS);
+      if (alpha <= 0) continue;
+      trailCtx.globalAlpha = alpha * 0.5;
+      trailCtx.beginPath();
+      trailCtx.moveTo(prev.x, prev.y);
+      trailCtx.lineTo(point.x, point.y);
+      trailCtx.stroke();
+    }
+    trailCtx.globalAlpha = 1;
   }
 
   function loop() {
@@ -688,10 +738,11 @@ function setupCustomCursor() {
     const dx = cursorX - lastTrailX;
     const dy = cursorY - lastTrailY;
     if (Math.hypot(dx, dy) >= CURSOR_TRAIL_MIN_DISTANCE) {
-      spawnTrailDot(cursorX, cursorY);
+      pushTrailPoint(cursorX, cursorY);
       lastTrailX = cursorX;
       lastTrailY = cursorY;
     }
+    drawTrail();
 
     const hovered = document.elementFromPoint(mouseX, mouseY);
     const isInteractive = !!(hovered && hovered.closest(CURSOR_HOVER_SELECTOR));
